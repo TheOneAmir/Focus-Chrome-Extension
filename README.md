@@ -5,14 +5,6 @@ holding focus sessions. Local-first: TextRank summarization runs on your
 device; the only network call is an anonymous heartbeat used to compute the
 aggregate "X others focusing right now" count.
 
-## Install (unpacked)
-
-1. Download `quiet-focus.zip` from the companion site and unzip it.
-2. Open `chrome://extensions` in any Chromium browser (Chrome, Edge, Brave, Arc).
-3. Toggle **Developer mode** on (top-right).
-4. Click **Load unpacked** and pick the unzipped folder.
-5. Pin the leaf icon, then click it on any article.
-
 ## Files
 
 - `manifest.json` — MV3 manifest
