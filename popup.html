@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Quiet Focus</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <header>
+      <div class="brand">
+        <span class="dot" aria-hidden></span>
+        <strong>Quiet Focus</strong>
+      </div>
+      <button id="audio-toggle" class="icon-btn" aria-pressed="false" title="Toggle ambient audio">
+        <span id="audio-label">Audio off</span>
+      </button>
+    </header>
+
+    <section id="modes" aria-label="Mode" class="modes"></section>
+
+    <section class="energy">
+      <div class="label">Energy <span class="muted">(optional, honest)</span></div>
+      <div id="energy" class="chips"></div>
+    </section>
+
+    <section class="actions">
+      <button id="summarize" class="primary">Summarize this page</button>
+      <button id="session-toggle" class="ghost">Start session</button>
+    </section>
+
+    <section id="status" class="status" aria-live="polite"></section>
+
+    <section id="summary" class="summary" hidden></section>
+
+    <section class="garden">
+      <div class="garden-head">
+        <span>Your garden</span>
+        <span id="garden-count" class="muted"></span>
+      </div>
+      <div id="garden"></div>
+      <div id="garden-meta" class="muted"></div>
+    </section>
+
+    <section id="surprise" class="surprise" hidden></section>
+
+    <footer>
+      <label class="muted small">
+        <input type="checkbox" id="low-stim" /> Low stimulation
+      </label>
+      <span id="others" class="muted small"></span>
+    </footer>
+
+    <script src="popup.js" type="module"></script>
+  </body>
+</html>
