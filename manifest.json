@@ -3,14 +3,17 @@
   "name": "Quiet Focus",
   "version": "0.1.0",
   "description": "ADHD-friendly reading & focus: on-device summaries, calm ambient audio, and a garden that grows with you.",
-  "permissions": ["activeTab", "scripting", "storage"],
+  "permissions": ["activeTab", "scripting", "storage", "tabs", "sidePanel"],
   "action": {
-    "default_popup": "popup.html",
+    "default_title": "Quiet Focus",
     "default_icon": {
       "16": "icon.png",
       "48": "icon.png",
       "128": "icon.png"
     }
+  },
+  "side_panel": {
+    "default_path": "popup.html"
   },
   "icons": {
     "16": "icon.png",
