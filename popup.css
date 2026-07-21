@@ -73,6 +73,13 @@ header {
 }
 .summary .meta { font-size: 11px; color: var(--muted); margin-bottom: 6px; }
 .summary p { margin: 0 0 6px; line-height: 1.45; }
+.current-plant {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 10px; margin-bottom: 12px;
+  animation: fadeIn 0.3s ease-out;
+}
+.current-plant-head { font-weight: 500; margin-bottom: 6px; text-align: center; }
+#current-plant svg { display: block; width: 100%; height: auto; border-radius: 8px; }
 .garden {
   background: var(--card); border: 1px solid var(--border);
   border-radius: var(--radius); padding: 10px;
@@ -80,6 +87,10 @@ header {
 .garden-head { display: flex; justify-content: space-between; font-weight: 500; margin-bottom: 6px; }
 #garden svg { display: block; width: 100%; height: auto; border-radius: 8px; }
 #garden-meta { margin-top: 6px; font-size: 11px; }
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
 .surprise {
   margin-top: 10px; padding: 8px 10px; border-radius: var(--radius);
   border: 1px solid var(--celebrate);

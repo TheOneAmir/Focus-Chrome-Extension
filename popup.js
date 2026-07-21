@@ -95,34 +95,110 @@ class AmbientPlayer {
   lofi(ctx,out){[220,277.18,329.63].forEach((f,i)=>{const o=ctx.createOscillator();o.type=i===0?"triangle":"sine";o.frequency.value=f;const g=ctx.createGain();g.gain.value=0.05;o.connect(g).connect(out);o.start();this.nodes.push(o,g);});}
 }
 
-// ---------- Garden ----------
+// ---------- Garden & Plant System ----------
 function rand(seed){let s=seed|0;return()=>{s=(s*1664525+1013904223)|0;return ((s>>>0)%10000)/10000;};}
-const PLANT=["#8aab8e","#a3c1a7","#7e9e83","#c5d7b7","#b7c69a"];
-const FLOWER=["#e0b5c4","#f0d28a","#c9b0d8","#b8d4e6"];
-function renderGarden(state, width=320, height=140){
-  const r=rand(state.seed||1);
-  const sky="#f7f5ef", soil="#cbb89a";
-  const out=[]; const max=Math.min(state.count,60);
-  for(let i=0;i<max;i++){
-    const x=8+(i/Math.max(max,1))*(width-16)+(r()-0.5)*8;
-    const baseY=height-22; const h=18+r()*42+(i%5)*3;
-    const c=PLANT[Math.floor(r()*PLANT.length)];
-    out.push(`<path d="M${x.toFixed(1)} ${baseY} Q ${(x+(r()-0.5)*12).toFixed(1)} ${(baseY-h/2).toFixed(1)} ${x.toFixed(1)} ${(baseY-h).toFixed(1)}" stroke="${c}" stroke-width="${(1.5+r()*1.5).toFixed(1)}" fill="none" stroke-linecap="round"/>`);
-    if (h>30){const ly=baseY-h*0.6; out.push(`<ellipse cx="${(x+(r()>0.5?5:-5)).toFixed(1)}" cy="${ly.toFixed(1)}" rx="5" ry="2.5" fill="${c}" opacity="0.85"/>`);}
-    if (state.count>5 && r()<0.18){const fc=FLOWER[Math.floor(r()*FLOWER.length)]; out.push(`<circle cx="${x.toFixed(1)}" cy="${(baseY-h).toFixed(1)}" r="3.2" fill="${fc}"/>`);}
+const PLANT_COLORS=["#8aab8e","#a3c1a7","#7e9e83","#c5d7b7","#b7c69a","#9db89f","#a8c5a3"];
+const FLOWER_COLORS=["#e0b5c4","#f0d28a","#c9b0d8","#b8d4e6","#f5a3b8","#d4a5e8"];
+
+// Generate unique plant characteristics
+function generatePlant(){
+  const seed = Math.floor(Math.random()*1e9);
+  const r = rand(seed);
+  return {
+    id: Date.now() + "-" + Math.random().toString(36).substr(2,9),
+    seed,
+    stemColor: PLANT_COLORS[Math.floor(r()*PLANT_COLORS.length)],
+    height: 25 + r()*45,
+    leafCount: Math.floor(2 + r()*4),
+    flowerColor: r()>0.4 ? FLOWER_COLORS[Math.floor(r()*FLOWER_COLORS.length)] : null,
+    curvature: (r()-0.5)*15,
+    timestamp: Date.now()
+  };
+}
+
+// Render a single plant with its characteristics
+function renderPlant(plant, x, baseY, scale=1){
+  const r = rand(plant.seed);
+  const h = plant.height * scale;
+  const endX = x + plant.curvature * scale;
+  const out = [];
+  
+  // Stem
+  out.push(`<path d="M${x.toFixed(1)} ${baseY} Q ${((x+endX)/2).toFixed(1)} ${(baseY-h/2).toFixed(1)} ${endX.toFixed(1)} ${(baseY-h).toFixed(1)}" stroke="${plant.stemColor}" stroke-width="${(2+r()*1).toFixed(1)}" fill="none" stroke-linecap="round"/>`);
+  
+  // Leaves
+  for(let i=0; i<plant.leafCount; i++){
+    const leafY = baseY - (h * (0.3 + (i/plant.leafCount)*0.5));
+    const leafX = x + (plant.curvature * (i/plant.leafCount)) + (r()>0.5?6:-6);
+    const leafSize = 4 + r()*3;
+    out.push(`<ellipse cx="${leafX.toFixed(1)}" cy="${leafY.toFixed(1)}" rx="${leafSize.toFixed(1)}" ry="${(leafSize*0.6).toFixed(1)}" fill="${plant.stemColor}" opacity="0.8"/>`);
   }
+  
+  // Flower
+  if(plant.flowerColor){
+    const petalCount = 5 + Math.floor(r()*3);
+    for(let i=0; i<petalCount; i++){
+      const angle = (i/petalCount)*Math.PI*2;
+      const px = endX + Math.cos(angle)*3;
+      const py = (baseY-h) + Math.sin(angle)*3;
+      out.push(`<circle cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" r="2.5" fill="${plant.flowerColor}" opacity="0.9"/>`);
+    }
+    out.push(`<circle cx="${endX.toFixed(1)}" cy="${(baseY-h).toFixed(1)}" r="2" fill="#f4d58d"/>`);
+  }
+  
+  return out.join("\n");
+}
+
+// Render the garden with stored plants
+function renderGarden(plants, width=320, height=140){
+  const sky="#f7f5ef", soil="#cbb89a";
+  const out=[];
+  const max=Math.min(plants.length, 60);
+  
+  if(max === 0){
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" width="100%" height="${height}">
+      <rect width="${width}" height="${height}" rx="14" fill="${sky}"/>
+      <rect x="0" y="${height-18}" width="${width}" height="18" fill="${soil}"/>
+      <text x="${width/2}" y="${height/2}" text-anchor="middle" fill="#9aa0ad" font-size="12" font-family="system-ui">Complete a session to grow your first plant</text>
+    </svg>`;
+  }
+  
+  const baseY = height-22;
+  const spacing = (width-16)/Math.max(max,1);
+  
+  for(let i=0; i<max; i++){
+    const plant = plants[plants.length - max + i];
+    const x = 8 + i*spacing + spacing/2;
+    out.push(renderPlant(plant, x, baseY, 0.85));
+  }
+  
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" width="100%" height="${height}">
-  <rect width="${width}" height="${height}" rx="14" fill="${sky}"/>
-  <rect x="0" y="${height-18}" width="${width}" height="18" fill="${soil}"/>
-  ${out.join("\n")}
-</svg>`;
+    <rect width="${width}" height="${height}" rx="14" fill="${sky}"/>
+    <rect x="0" y="${height-18}" width="${width}" height="18" fill="${soil}"/>
+    ${out.join("\n")}
+  </svg>`;
+}
+
+// Render the currently growing plant
+function renderGrowingPlant(plant, growthStage=1, width=320, height=120){
+  if(!plant) return "";
+  const sky="#f7f5ef", soil="#cbb89a";
+  const baseY = height-18;
+  const x = width/2;
+  const plantSvg = renderPlant(plant, x, baseY, growthStage);
+  
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" width="100%" height="${height}">
+    <rect width="${width}" height="${height}" rx="14" fill="${sky}"/>
+    <rect x="0" y="${height-18}" width="${width}" height="18" fill="${soil}"/>
+    ${plantSvg}
+  </svg>`;
 }
 
 // ---------- Gamification ----------
 const SURPRISES = ["A bee visits your garden.","Tiny mushroom appeared overnight.","Something bloomed.","A leaf unfurled.","A small bird flew through.","The light shifted, just so."];
 function weekStart(d){const x=new Date(d);x.setHours(0,0,0,0);x.setDate(x.getDate()-x.getDay());return x;}
 function sameDay(a,b){return a.getFullYear()===b.getFullYear()&&a.getMonth()===b.getMonth()&&a.getDate()===b.getDate();}
-function emptyState(){return{count:0,seed:Math.floor(Math.random()*1e9),honestTags:0,weekStartIso:weekStart(new Date()).toISOString(),daysActiveThisWeek:0,bestWeek:0,lastActiveIso:"",graceUsedThisWeek:0};}
+function emptyState(){return{count:0,plants:[],seed:Math.floor(Math.random()*1e9),honestTags:0,weekStartIso:weekStart(new Date()).toISOString(),daysActiveThisWeek:0,bestWeek:0,lastActiveIso:"",graceUsedThisWeek:0,currentPlant:null};}
 function recordCompletion(state,opts={}){
   const now=new Date(); const next={...state};
   const ws=weekStart(now);
@@ -133,6 +209,15 @@ function recordCompletion(state,opts={}){
   const last=state.lastActiveIso?new Date(state.lastActiveIso):null;
   if (!last || !sameDay(last,now)){ next.daysActiveThisWeek+=1; next.lastActiveIso=now.toISOString(); }
   next.count+=1;
+  
+  // Add current plant to garden if it exists
+  if (state.currentPlant) {
+    next.plants = [...(state.plants || []), state.currentPlant];
+    // Keep only last 60 plants
+    if (next.plants.length > 60) next.plants = next.plants.slice(-60);
+    next.currentPlant = null;
+  }
+  
   if (opts.honestlyTagged) next.honestTags+=1;
   const surprise = Math.random()<0.18 ? SURPRISES[Math.floor(Math.random()*SURPRISES.length)] : null;
   return { state: next, surprise };
@@ -177,6 +262,8 @@ const els = {
   audioLabel: document.getElementById("audio-label"),
   status: document.getElementById("status"),
   summary: document.getElementById("summary"),
+  currentPlantSection: document.getElementById("current-plant-section"),
+  currentPlant: document.getElementById("current-plant"),
   garden: document.getElementById("garden"),
   gardenCount: document.getElementById("garden-count"),
   gardenMeta: document.getElementById("garden-meta"),
@@ -214,9 +301,19 @@ function renderEnergy(){
     els.energy.appendChild(c);
   });
 }
+async function renderCurrentPlantUI(){
+  const state = await loadState();
+  if (state.currentPlant) {
+    els.currentPlantSection.hidden = false;
+    els.currentPlant.innerHTML = renderGrowingPlant(state.currentPlant, 1);
+  } else {
+    els.currentPlantSection.hidden = true;
+  }
+}
 async function renderGardenUI(){
   const state = await loadState();
-  els.garden.innerHTML = renderGarden({count: state.count, seed: state.seed});
+  const plants = state.plants || [];
+  els.garden.innerHTML = renderGarden(plants);
   els.gardenCount.textContent = `${state.count} ${state.count===1?"growth":"growths"}`;
   els.gardenMeta.textContent = `Best week: ${state.bestWeek} days · This week: ${state.daysActiveThisWeek} days · grace left ${Math.max(0,2-state.graceUsedThisWeek)} · honest tags ${state.honestTags}`;
 }
@@ -240,6 +337,15 @@ async function onSummarize(){
   const [tab] = await chrome.tabs.query({ active:true, currentWindow:true });
   if (!tab?.id){ setStatus("No active tab."); return; }
   els.summarize.disabled = true; setStatus("Reading page…");
+  
+  // Generate a new plant for this session
+  let state = await loadState();
+  if (!state.currentPlant) {
+    state.currentPlant = generatePlant();
+    await saveState(state);
+    await renderCurrentPlantUI();
+  }
+  
   try {
     await chrome.scripting.executeScript({ target:{tabId: tab.id}, files:["content.js"] }).catch(()=>{});
     const resp = await chrome.tabs.sendMessage(tab.id, { type:"QF_EXTRACT" });
@@ -255,9 +361,10 @@ async function onSummarize(){
       setStatus("From cache.");
     }
     showSummary(result, resp.data.title);
-    const state = await loadState();
+    state = await loadState();
     const { state: next, surprise } = recordCompletion(state, { honestlyTagged: !!ui.energy });
     await saveState(next);
+    await renderCurrentPlantUI();
     await renderGardenUI();
     if (surprise) flashSurprise(surprise);
   } catch (e) {
@@ -293,6 +400,13 @@ async function toggleSession(){
   ui.sessionActive = !ui.sessionActive;
   els.session.textContent = ui.sessionActive ? "End session" : "Start session";
   if (ui.sessionActive) {
+    // Generate a new plant when starting a session
+    let state = await loadState();
+    if (!state.currentPlant) {
+      state.currentPlant = generatePlant();
+      await saveState(state);
+      await renderCurrentPlantUI();
+    }
     chrome.runtime.sendMessage({ type:"QF_HEARTBEAT_START" });
     setStatus("Session running. Heartbeats are anonymous.");
   } else {
@@ -301,6 +415,7 @@ async function toggleSession(){
     const state = await loadState();
     const { state: next, surprise } = recordCompletion(state, { honestlyTagged: !!ui.energy });
     await saveState(next);
+    await renderCurrentPlantUI();
     await renderGardenUI();
     if (surprise) flashSurprise(surprise);
     setStatus("");
@@ -321,7 +436,9 @@ async function refreshOthers(){
   const prefs = await loadPrefs();
   ui.mode = prefs.mode; ui.energy = prefs.energy;
   setLowStim(prefs.lowStim || window.matchMedia("(prefers-reduced-motion: reduce)").matches);
-  renderModes(); renderEnergy(); await renderGardenUI();
+  renderModes(); renderEnergy(); 
+  await renderCurrentPlantUI();
+  await renderGardenUI();
   if (prefs.audio) setAudio(true); else setAudio(false);
   els.summarize.onclick = onSummarize;
   els.session.onclick = toggleSession;
