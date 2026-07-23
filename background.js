@@ -44,52 +44,19 @@ async function endSession() {
 
 async function configureSidePanel() {
   try {
-    await chrome.sidePanel.setOptions({ enabled: true, path: "popup.html" });
+    // Clicking the toolbar icon opens (and toggles) the side panel. A global
+    // side panel stays open as the user switches tabs, so it acts as a
+    // persistent focus tool across the browsing session.
+    await chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
   } catch (error) {
     console.warn("Could not configure side panel", error);
   }
 }
 
-async function openSidePanelForActiveTab() {
-  try {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (tab?.id) {
-      await chrome.sidePanel.show({ tabId: tab.id });
-    }
-  } catch (error) {
-    console.warn("Could not open side panel", error);
-  }
-}
+configureSidePanel();
 
-function registerPanelBehavior() {
-  chrome.tabs.onActivated.addListener(({ tabId }) => {
-    chrome.sidePanel.show({ tabId }).catch(() => {});
-  });
-
-  chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-    if (tab?.active && changeInfo.status === "complete") {
-      chrome.sidePanel.show({ tabId }).catch(() => {});
-    }
-  });
-}
-
-registerPanelBehavior();
-
-chrome.runtime.onInstalled.addListener(() => {
-  configureSidePanel();
-  openSidePanelForActiveTab();
-});
-
-chrome.runtime.onStartup.addListener(() => {
-  configureSidePanel();
-  openSidePanelForActiveTab();
-});
-
-chrome.action?.onClicked?.addListener((tab) => {
-  if (tab?.id) {
-    chrome.sidePanel.show({ tabId: tab.id });
-  }
-});
+chrome.runtime.onInstalled.addListener(configureSidePanel);
+chrome.runtime.onStartup.addListener(configureSidePanel);
 
 chrome.runtime.onMessage.addListener((msg, _s, send) => {
   if (msg?.type === "QF_HEARTBEAT_START") {

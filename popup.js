@@ -223,8 +223,8 @@ async function loadState(){
 }
 async function saveState(s){ await chrome.storage.local.set({ state: s }); }
 async function loadPrefs(){
-  const { mode, audio, lowStim } = await chrome.storage.local.get(["mode","audio","lowStim"]);
-  return { mode: mode || "deep", audio: !!audio, lowStim: !!lowStim };
+  const { mode, audio } = await chrome.storage.local.get(["mode","audio"]);
+  return { mode: mode || "deep", audio: !!audio };
 }
 async function savePrefs(p){ await chrome.storage.local.set(p); }
 
@@ -279,7 +279,6 @@ const els = {
   gardenCount: document.getElementById("garden-count"),
   gardenMeta: document.getElementById("garden-meta"),
   surprise: document.getElementById("surprise"),
-  lowStim: document.getElementById("low-stim"),
   others: document.getElementById("others"),
 };
 
@@ -356,10 +355,11 @@ async function renderGardenUI(){
   els.gardenMeta.textContent = `Best week: ${state.bestWeek} days · This week: ${state.daysActiveThisWeek} days · grace left ${Math.max(0,2-state.graceUsedThisWeek)} · honest tags ${state.honestTags}`;
 }
 function setStatus(t){ els.status.textContent = t || ""; }
-function setLowStim(on){
-  ui.lowStim = on; els.lowStim.checked = on;
+function applyLowStim(){
+  // Honour the OS "reduce motion" accessibility setting automatically.
+  const on = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  ui.lowStim = on;
   document.body.classList.toggle("low-stim", on);
-  savePrefs({ lowStim: on });
 }
 function setAudio(on){
   ui.audio = on; els.audio.setAttribute("aria-pressed", String(on));
@@ -475,7 +475,7 @@ async function refreshOthers(){
 (async function init(){
   const prefs = await loadPrefs();
   ui.mode = prefs.mode;
-  setLowStim(prefs.lowStim || window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+  applyLowStim();
   renderModes();
   // Restore an in-progress session (popup may have been closed and reopened)
   const session = await loadSession();
@@ -490,6 +490,5 @@ async function refreshOthers(){
   els.summarize.onclick = onSummarize;
   els.session.onclick = toggleSession;
   els.audio.onclick = ()=> setAudio(!ui.audio);
-  els.lowStim.onchange = (e)=> setLowStim(e.target.checked);
   refreshOthers();
 })();
