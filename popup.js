@@ -311,14 +311,16 @@ function stopStatsTimer(){
 
 async function renderCurrentPlantUI(){
   const state = await loadState();
+  els.currentPlantSection.hidden = false;
+
   if (!state.currentPlant) {
-    els.currentPlantSection.hidden = true;
+    els.currentPlant.innerHTML = `<div class="empty-plant"><div class="empty-plant-icon">🌱</div><div class="empty-plant-copy">Your growing plant will appear here once a session starts.</div></div>`;
     els.plantTimer.textContent = "";
     els.plantProgress.hidden = true;
+    els.sessionStats.textContent = "Start a session to begin growing";
     stopStatsTimer();
     return;
   }
-  els.currentPlantSection.hidden = false;
 
   const session = await loadSession();
   if (session) {

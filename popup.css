@@ -76,6 +76,12 @@ header {
   display: flex; justify-content: space-between; align-items: center; gap: 8px;
 }
 #plant-timer { font-variant-numeric: tabular-nums; }
+.empty-plant {
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  padding: 12px 8px; text-align: center; color: var(--muted);
+}
+.empty-plant-icon { font-size: 24px; }
+.empty-plant-copy { font-size: 12px; line-height: 1.4; }
 #current-plant svg { display: block; width: 100%; height: auto; border-radius: 8px; }
 .progress {
   height: 6px; margin-top: 8px; border-radius: 999px; overflow: hidden;
