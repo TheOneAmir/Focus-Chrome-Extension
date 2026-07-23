@@ -19,11 +19,6 @@
 
     <section id="modes" aria-label="Mode" class="modes"></section>
 
-    <section class="energy">
-      <div class="label">Energy <span class="muted">(optional, honest)</span></div>
-      <div id="energy" class="chips"></div>
-    </section>
-
     <section class="actions">
       <button id="summarize" class="primary">Summarize this page</button>
       <button id="session-toggle" class="ghost">Start session</button>
@@ -36,9 +31,11 @@
     <section id="current-plant-section" class="current-plant" hidden>
       <div class="current-plant-head">
         <span>🌱 Growing now</span>
+        <span id="plant-timer" class="muted small"></span>
       </div>
       <div id="current-plant"></div>
-      <div class="muted small" style="margin-top: 6px; text-align: center;">Complete your session to add this plant to your garden</div>
+      <div id="plant-progress" class="progress" hidden><div id="plant-progress-bar"></div></div>
+      <div id="session-stats" class="muted small" style="margin-top: 6px; text-align: center;">Complete your session to add this plant to your garden</div>
     </section>
 
     <section class="garden">

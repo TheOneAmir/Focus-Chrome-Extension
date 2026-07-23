@@ -49,13 +49,6 @@ header {
 .label { font-weight: 500; margin-bottom: 6px; }
 .muted { color: var(--muted); }
 .small { font-size: 11px; }
-.energy { margin-bottom: 12px; }
-.chips { display: flex; flex-wrap: wrap; gap: 6px; }
-.chip {
-  border: 1px solid var(--border); background: var(--card); color: var(--muted);
-  border-radius: 999px; padding: 4px 10px; cursor: pointer; font-size: 11px;
-}
-.chip.active { color: var(--fg); border-color: color-mix(in srgb, var(--fg) 40%, var(--border)); }
 .actions { display: flex; gap: 8px; margin-bottom: 10px; }
 .primary {
   flex: 1; border: 0; border-radius: 999px; padding: 9px 12px; font-weight: 600;
@@ -78,8 +71,22 @@ header {
   border-radius: var(--radius); padding: 10px; margin-bottom: 12px;
   animation: fadeIn 0.3s ease-out;
 }
-.current-plant-head { font-weight: 500; margin-bottom: 6px; text-align: center; }
+.current-plant-head {
+  font-weight: 500; margin-bottom: 6px;
+  display: flex; justify-content: space-between; align-items: center; gap: 8px;
+}
+#plant-timer { font-variant-numeric: tabular-nums; }
 #current-plant svg { display: block; width: 100%; height: auto; border-radius: 8px; }
+.progress {
+  height: 6px; margin-top: 8px; border-radius: 999px; overflow: hidden;
+  background: color-mix(in srgb, var(--fg) 12%, transparent);
+}
+#plant-progress-bar {
+  height: 100%; width: 0%; border-radius: 999px;
+  background: linear-gradient(90deg, #8aab8e, #bcd2c4);
+  transition: width .9s linear;
+}
+body.low-stim #plant-progress-bar { transition: none; }
 .garden {
   background: var(--card); border: 1px solid var(--border);
   border-radius: var(--radius); padding: 10px;

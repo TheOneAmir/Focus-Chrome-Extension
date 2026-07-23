@@ -9,13 +9,6 @@ const MODES = {
 };
 const MODE_IDS = ["deep","skim","low","hyper"];
 
-const ENERGY = [
-  { id:"hyperfocus",  label:"Hyperfocus",  suggest:"hyper" },
-  { id:"normal",      label:"Normal",      suggest:"deep" },
-  { id:"low_battery", label:"Low battery", suggest:"skim" },
-  { id:"zombie",      label:"Zombie",      suggest:"low" },
-];
-
 // ---------- TextRank (inlined; identical algorithm to the site) ----------
 const STOPWORDS = new Set("a an the and or but if then else for of in on at to from by with as is are was were be been being have has had do does did this that these those it its i you he she we they them his her our their not no so just very also can will would should could may might".split(" "));
 function tokenize(s){return s.toLowerCase().replace(/[^a-z0-9\s']/g," ").split(/\s+/).filter(t=>t.length>2 && !STOPWORDS.has(t));}
@@ -230,10 +223,25 @@ async function loadState(){
 }
 async function saveState(s){ await chrome.storage.local.set({ state: s }); }
 async function loadPrefs(){
-  const { mode, energy, audio, lowStim } = await chrome.storage.local.get(["mode","energy","audio","lowStim"]);
-  return { mode: mode || "deep", energy: energy || null, audio: !!audio, lowStim: !!lowStim };
+  const { mode, audio, lowStim } = await chrome.storage.local.get(["mode","audio","lowStim"]);
+  return { mode: mode || "deep", audio: !!audio, lowStim: !!lowStim };
 }
 async function savePrefs(p){ await chrome.storage.local.set(p); }
+
+// ---------- Session timing ----------
+async function loadSession(){
+  const { qfSession } = await chrome.storage.local.get("qfSession");
+  return qfSession || null;
+}
+async function saveSession(s){ await chrome.storage.local.set({ qfSession: s }); }
+async function clearSession(){ await chrome.storage.local.remove("qfSession"); }
+
+function fmtRemaining(ms){
+  const totalSec = Math.ceil(ms/1000);
+  const m = Math.floor(totalSec/60);
+  const s = totalSec%60;
+  return m>0 ? `${m} min ${s.toString().padStart(2,"0")}s` : `${s}s`;
+}
 
 async function cachedSummary(hash){
   const { cache } = await chrome.storage.local.get("cache");
@@ -255,7 +263,6 @@ const ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsI
 
 const els = {
   modes: document.getElementById("modes"),
-  energy: document.getElementById("energy"),
   summarize: document.getElementById("summarize"),
   session: document.getElementById("session-toggle"),
   audio: document.getElementById("audio-toggle"),
@@ -264,6 +271,10 @@ const els = {
   summary: document.getElementById("summary"),
   currentPlantSection: document.getElementById("current-plant-section"),
   currentPlant: document.getElementById("current-plant"),
+  plantTimer: document.getElementById("plant-timer"),
+  plantProgress: document.getElementById("plant-progress"),
+  plantProgressBar: document.getElementById("plant-progress-bar"),
+  sessionStats: document.getElementById("session-stats"),
   garden: document.getElementById("garden"),
   gardenCount: document.getElementById("garden-count"),
   gardenMeta: document.getElementById("garden-meta"),
@@ -273,7 +284,7 @@ const els = {
 };
 
 const player = new AmbientPlayer();
-const ui = { mode: "deep", energy: null, audio: false, lowStim: false, sessionActive: false };
+const ui = { mode: "deep", audio: false, lowStim: false, sessionActive: false };
 
 function renderModes(){
   els.modes.innerHTML = "";
@@ -282,32 +293,59 @@ function renderModes(){
     const b = document.createElement("button");
     b.className = "mode" + (ui.mode===id?" active":"");
     b.innerHTML = `<div class="name">${m.label}</div><div class="sub">${m.sub}</div>`;
-    b.onclick = ()=>{ ui.mode=id; savePrefs({mode:id}); renderModes(); restartAudioIfOn(); };
+    // Clicking a mode selects it and plays its ambient audio automatically
+    // (silent modes turn audio off). The click is the user gesture the
+    // AudioContext needs, so playback is allowed.
+    b.onclick = ()=>{ ui.mode=id; savePrefs({mode:id}); renderModes(); setAudio(m.audio!=="off"); };
     els.modes.appendChild(b);
   });
 }
-function renderEnergy(){
-  els.energy.innerHTML = "";
-  ENERGY.forEach(e=>{
-    const c = document.createElement("button");
-    c.className = "chip" + (ui.energy===e.id?" active":"");
-    c.textContent = e.label;
-    c.onclick = ()=>{
-      ui.energy = ui.energy===e.id ? null : e.id;
-      savePrefs({ energy: ui.energy });
-      if (ui.energy){ ui.mode = e.suggest; savePrefs({ mode: ui.mode }); renderModes(); }
-      renderEnergy();
-    };
-    els.energy.appendChild(c);
-  });
+
+let statsTimer = null;
+function startStatsTimer(){
+  stopStatsTimer();
+  statsTimer = setInterval(renderCurrentPlantUI, 1000);
 }
+function stopStatsTimer(){
+  if (statsTimer){ clearInterval(statsTimer); statsTimer = null; }
+}
+
 async function renderCurrentPlantUI(){
   const state = await loadState();
-  if (state.currentPlant) {
-    els.currentPlantSection.hidden = false;
-    els.currentPlant.innerHTML = renderGrowingPlant(state.currentPlant, 1);
-  } else {
+  if (!state.currentPlant) {
     els.currentPlantSection.hidden = true;
+    els.plantTimer.textContent = "";
+    els.plantProgress.hidden = true;
+    stopStatsTimer();
+    return;
+  }
+  els.currentPlantSection.hidden = false;
+
+  const session = await loadSession();
+  if (session) {
+    const mode = MODES[session.mode] || MODES.deep;
+    const durationMs = mode.session * 60000;
+    const elapsed = Date.now() - session.startMs;
+    const remaining = Math.max(0, durationMs - elapsed);
+    const growth = Math.min(1, Math.max(0.15, elapsed / durationMs));
+    const pct = Math.min(100, Math.round((elapsed / durationMs) * 100));
+
+    els.currentPlant.innerHTML = renderGrowingPlant(state.currentPlant, growth);
+    els.plantProgress.hidden = false;
+    els.plantProgressBar.style.width = pct + "%";
+    if (remaining > 0) {
+      els.plantTimer.textContent = `${fmtRemaining(remaining)} left`;
+      els.sessionStats.textContent =
+        `${mode.label} · ${mode.session} min session · ${pct}% grown`;
+    } else {
+      els.plantTimer.textContent = "Fully grown 🌸";
+      els.sessionStats.textContent = "End your session to add this plant to your garden";
+    }
+  } else {
+    els.currentPlant.innerHTML = renderGrowingPlant(state.currentPlant, 1);
+    els.plantProgress.hidden = true;
+    els.plantTimer.textContent = "";
+    els.sessionStats.textContent = "Complete your session to add this plant to your garden";
   }
 }
 async function renderGardenUI(){
@@ -322,9 +360,6 @@ function setLowStim(on){
   ui.lowStim = on; els.lowStim.checked = on;
   document.body.classList.toggle("low-stim", on);
   savePrefs({ lowStim: on });
-}
-function restartAudioIfOn(){
-  if (ui.audio) player.start(MODES[ui.mode]);
 }
 function setAudio(on){
   ui.audio = on; els.audio.setAttribute("aria-pressed", String(on));
@@ -362,7 +397,7 @@ async function onSummarize(){
     }
     showSummary(result, resp.data.title);
     state = await loadState();
-    const { state: next, surprise } = recordCompletion(state, { honestlyTagged: !!ui.energy });
+    const { state: next, surprise } = recordCompletion(state);
     await saveState(next);
     await renderCurrentPlantUI();
     await renderGardenUI();
@@ -405,15 +440,20 @@ async function toggleSession(){
     if (!state.currentPlant) {
       state.currentPlant = generatePlant();
       await saveState(state);
-      await renderCurrentPlantUI();
     }
+    await saveSession({ startMs: Date.now(), mode: ui.mode });
+    await renderCurrentPlantUI();
+    startStatsTimer();
     chrome.runtime.sendMessage({ type:"QF_HEARTBEAT_START" });
-    setStatus("Session running. Heartbeats are anonymous.");
+    const mins = (MODES[ui.mode] || MODES.deep).session;
+    setStatus(`Session running · growing for ${mins} min. Heartbeats are anonymous.`);
   } else {
+    stopStatsTimer();
+    await clearSession();
     chrome.runtime.sendMessage({ type:"QF_HEARTBEAT_END" });
     // count session completion toward the garden
     const state = await loadState();
-    const { state: next, surprise } = recordCompletion(state, { honestlyTagged: !!ui.energy });
+    const { state: next, surprise } = recordCompletion(state);
     await saveState(next);
     await renderCurrentPlantUI();
     await renderGardenUI();
@@ -434,9 +474,16 @@ async function refreshOthers(){
 
 (async function init(){
   const prefs = await loadPrefs();
-  ui.mode = prefs.mode; ui.energy = prefs.energy;
+  ui.mode = prefs.mode;
   setLowStim(prefs.lowStim || window.matchMedia("(prefers-reduced-motion: reduce)").matches);
-  renderModes(); renderEnergy(); 
+  renderModes();
+  // Restore an in-progress session (popup may have been closed and reopened)
+  const session = await loadSession();
+  if (session) {
+    ui.sessionActive = true;
+    els.session.textContent = "End session";
+    startStatsTimer();
+  }
   await renderCurrentPlantUI();
   await renderGardenUI();
   if (prefs.audio) setAudio(true); else setAudio(false);
