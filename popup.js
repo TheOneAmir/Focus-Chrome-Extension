@@ -263,7 +263,6 @@ const ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsI
 
 const els = {
   modes: document.getElementById("modes"),
-  summarize: document.getElementById("summarize"),
   session: document.getElementById("session-toggle"),
   audio: document.getElementById("audio-toggle"),
   audioLabel: document.getElementById("audio-label"),
@@ -370,47 +369,6 @@ function setAudio(on){
   if (on) player.start(MODES[ui.mode]); else player.stop();
 }
 
-async function onSummarize(){
-  const [tab] = await chrome.tabs.query({ active:true, currentWindow:true });
-  if (!tab?.id){ setStatus("No active tab."); return; }
-  els.summarize.disabled = true; setStatus("Reading page…");
-  
-  // Generate a new plant for this session
-  let state = await loadState();
-  if (!state.currentPlant) {
-    state.currentPlant = generatePlant();
-    await saveState(state);
-    await renderCurrentPlantUI();
-  }
-  
-  try {
-    await chrome.scripting.executeScript({ target:{tabId: tab.id}, files:["content.js"] }).catch(()=>{});
-    const resp = await chrome.tabs.sendMessage(tab.id, { type:"QF_EXTRACT" });
-    if (!resp?.ok || !resp.data?.text) { setStatus("Couldn't read that page."); return; }
-    const { text } = resp.data;
-    const hash = await contentHash(text + "|" + ui.mode);
-    let result = await cachedSummary(hash);
-    if (!result) {
-      setStatus("Summarizing…");
-      result = await summarize(text, ui.mode);
-      await cacheSummary(hash, result);
-    } else {
-      setStatus("From cache.");
-    }
-    showSummary(result, resp.data.title);
-    state = await loadState();
-    const { state: next, surprise } = recordCompletion(state);
-    await saveState(next);
-    await renderCurrentPlantUI();
-    await renderGardenUI();
-    if (surprise) flashSurprise(surprise);
-  } catch (e) {
-    setStatus("Couldn't summarize this page.");
-  } finally {
-    els.summarize.disabled = false;
-  }
-}
-
 function showSummary(r, title){
   els.summary.hidden = false;
   const saved = r.minutesSaved>0 ? ` · saved you ~${r.minutesSaved} min` : "";
@@ -446,6 +404,7 @@ async function toggleSession(){
     await saveSession({ startMs: Date.now(), mode: ui.mode });
     await renderCurrentPlantUI();
     startStatsTimer();
+    setAudio(MODES[ui.mode].audio !== "off");
     chrome.runtime.sendMessage({ type:"QF_HEARTBEAT_START" });
     const mins = (MODES[ui.mode] || MODES.deep).session;
     setStatus(`Session running · growing for ${mins} min. Heartbeats are anonymous.`);
@@ -489,7 +448,6 @@ async function refreshOthers(){
   await renderCurrentPlantUI();
   await renderGardenUI();
   if (prefs.audio) setAudio(true); else setAudio(false);
-  els.summarize.onclick = onSummarize;
   els.session.onclick = toggleSession;
   els.audio.onclick = ()=> setAudio(!ui.audio);
   refreshOthers();
