@@ -362,10 +362,10 @@ function applyLowStim(){
   ui.lowStim = on;
   document.body.classList.toggle("low-stim", on);
 }
-function setAudio(on){
+function setAudio(on, savePref=true){
   ui.audio = on; els.audio.setAttribute("aria-pressed", String(on));
   els.audioLabel.textContent = on ? `Audio: ${MODES[ui.mode].audio}` : "Audio off";
-  savePrefs({ audio: on });
+  if (savePref) savePrefs({ audio: on });
   if (on) player.start(MODES[ui.mode]); else player.stop();
 }
 
@@ -410,6 +410,7 @@ async function toggleSession(){
     setStatus(`Session running · growing for ${mins} min. Heartbeats are anonymous.`);
   } else {
     stopStatsTimer();
+    setAudio(false, false);
     await clearSession();
     chrome.runtime.sendMessage({ type:"QF_HEARTBEAT_END" });
     // count session completion toward the garden
