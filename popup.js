@@ -291,10 +291,9 @@ function renderModes(){
     const b = document.createElement("button");
     b.className = "mode" + (ui.mode===id?" active":"");
     b.innerHTML = `<div class="name">${m.label}</div><div class="sub">${m.sub}</div>`;
-    // Clicking a mode selects it and plays its ambient audio automatically
-    // (silent modes turn audio off). The click is the user gesture the
-    // AudioContext needs, so playback is allowed.
-    b.onclick = ()=>{ ui.mode=id; savePrefs({mode:id}); renderModes(); setAudio(m.audio!=="off"); };
+    // Clicking a mode selects it without starting audio. Audio should be
+    // muted by default and only become active when a session starts.
+    b.onclick = ()=>{ ui.mode=id; savePrefs({mode:id}); renderModes(); };
     els.modes.appendChild(b);
   });
 }
@@ -448,7 +447,7 @@ async function refreshOthers(){
   }
   await renderCurrentPlantUI();
   await renderGardenUI();
-  if (prefs.audio) setAudio(true); else setAudio(false);
+  setAudio(false, false);
   els.session.onclick = toggleSession;
   els.audio.onclick = ()=> setAudio(!ui.audio);
   refreshOthers();
